@@ -9,6 +9,8 @@ import datetime
 import os
 
 
+### das functions
+
 def eda_raw_data(directory_to_file,name_of_file):
     ''' Function to open .h5 file
     Args:
@@ -23,7 +25,6 @@ def eda_raw_data(directory_to_file,name_of_file):
     # Read the dataset
     raw_data = file['/Acquisition/Raw[0]/RawData']
     raw_data = np.double(raw_data) # Convert to double
-
 
     return raw_data
 
@@ -216,32 +217,8 @@ def load_decim_data(directory_to_file,name_of_file):
     # convert h5 group to double
     return np.double(data),time_datetime
 
-def sort_filenames_by_time(filenames):
-    ''' Helper function to sort filenames
-    '''
-    return sorted(filenames, key=lambda x: datetime.datetime.strptime(x.split('_')[1], "%Y-%m-%dT%H%M%S%z"))
-
-def load_decim_data_helper(directory_to_file,name_of_file):
-    ''' Helper function to load decimated 100 Hz
-    Args:
-        directory_to_file: full directory to file (string)
-        name_of_file: .h5 file that you want to decimate (string)
-        decim_factor: factor to decimate
-
-    Returns:
-        strain_data: 
-        time: 
-
-    Raises:
-    '''
-    file = h5py.File(directory_to_file+'/'+name_of_file+'.h5', 'r+')
-    data = file['strain']
-    time = file['time']
-    return data,time
-
-
 def concatenate_and_save_h5(directory_to_file, output_filename, filetype):
-    ''' Function to compile the decimated files
+    ''' Function to compile the decimated files, stitching all the files together
     '''
     files = [f for f in os.listdir(directory_to_file) if f.endswith('_decimated100hz.h5')]
     sorted_files = sort_filenames_by_time(files)
@@ -270,6 +247,32 @@ def concatenate_and_save_h5(directory_to_file, output_filename, filetype):
     with h5py.File(directory_to_file+'/'+filename+output_filename+'.h5', 'w') as f:
         f.create_dataset('strain', data=all_strain_data)
         f.create_dataset('time', data=all_time_data)
+
+# das helper functions
+def sort_filenames_by_time(filenames):
+    ''' Helper function to sort filenames
+    '''
+    return sorted(filenames, key=lambda x: datetime.datetime.strptime(x.split('_')[1], "%Y-%m-%dT%H%M%S%z"))
+
+def load_decim_data_helper(directory_to_file,name_of_file):
+    ''' Helper function to load decimated 100 Hz
+    Args:
+        directory_to_file: full directory to file (string)
+        name_of_file: .h5 file that you want to decimate (string)
+        decim_factor: factor to decimate
+
+    Returns:
+        strain_data: 
+        time: 
+
+    Raises:
+    '''
+    file = h5py.File(directory_to_file+'/'+name_of_file+'.h5', 'r+')
+    data = file['strain']
+    time = file['time']
+    return data,time
+
+
 
 
 
