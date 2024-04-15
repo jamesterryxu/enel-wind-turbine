@@ -1,5 +1,6 @@
 import h5py
 import numpy as np
+import pandas as pd
 from scipy.signal import decimate
 from scipy.signal import butter
 from scipy.signal import filtfilt
@@ -273,6 +274,43 @@ def load_decim_data_helper(directory_to_file,name_of_file):
     return data,time
 
 
+### luna functions
 
+def clean_luna_files(directory_to_file,input_file_name,output_file_name,target_time):
+    ''' File to cut raw Luna file
+    Input:
+        directory_to_file: directory to the folder where the input file lives
+        input_file_name: name of file to be cut
+        output_file_name: name of cut file (should follow naming convention)
+        target_time: list of start and end times, takes a string in the format ('%Y-%m-%d %H:%M:%S') Note that the luna data is 6 hours ahead of the local Oklahoma time!
 
+    Output:
+        .h5 file that contains the cut data, with three fields
+    
+    '''
+    # Use pandas to help cut the data
+    luna_data = pd.read_csv(directory_to_file+input_file_name,sep='\t',skiprows=32).values
+
+    # Get spatial indicies to cut the dataset
+    start_top_loop = luna_data.columns.get_loc('75.7894.1')
+    end_top_loop = luna_data.columns.get_loc('87.5726.1')
+    start_bot_loop = luna_data.columns.get_loc('36.3708.1')
+    end_bot_loop = luna_data.columns.get_loc('49.7738.1')
+
+    # Get time indicies to cut the dataset
+    # Initialize list to store indicies
+    target_time_indicies = []
+    for time in target_time:
+        time_diff = (luna_data.iloc[:,0]-pd.Timestamp(time)).abs()
+        target_time_indicies.append(time_diff.idxmin())
+
+    # We now have all the indicies needed to cut the dataset
+
+    # Save decimated strain data
+    with h5py.File(directory_to_file+'/'+output_file_name+'.h5', 'w') as hf:
+        hf.create_dataset('time',  data=luna_data.iloc[target_time_indicies[0]:target_time_indicies[1],0])
+        hf.create_dataset('top-loop',data=luna_data.iloc[target_time_indicies[0]:target_time_indicies[1],start_top_loop:end_top_loop])
+        hf.create_dataset('bot-loop',data=luna_data.iloc[target_time_indicies[0]:target_time_indicies[1],start_bot_loop:end_bot_loop])
+        hf.close()
+    return
 
