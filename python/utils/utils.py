@@ -12,22 +12,7 @@ import os
 
 ### das functions
 
-def eda_raw_data(directory_to_file,name_of_file):
-    ''' Function to open .h5 file
-    Args:
-        directory_to_file: full directory to file (string)
-        name_of_file: .h5 file that you want to examine (string)
-    Returns:
-    
-    Raises:
-    
-    '''
-    file = h5py.File(directory_to_file+'/'+name_of_file+'.h5', 'r')
-    # Read the dataset
-    raw_data = file['/Acquisition/Raw[0]/RawData']
-    raw_data = np.double(raw_data) # Convert to double
-
-    return raw_data
+# preprocessing functions
 
 def raw_to_phase(directory_to_file,name_of_file):
     ''' Function to reformat the data fields in the h5 file (Doesn't decimate or unwrap)
@@ -84,13 +69,15 @@ def decim_to_100(directory_to_file,name_of_file,decim_factor=50):
     # Convert raw_data to phase_data
     phase_data = raw_data / 10430.378350470453 # This is (2**15)/pi
 
-    # UNWRAP PHASE_DECIM (RADIAN NUMBER) BEFORE DECIMATION 
-    phase_data_unwrapped = np.unwrap(phase_data,axis=1) # axis on time dimension
+    ### FILES ARE TOO BIG TO DO UNWRAPPING... for now skip this step
+    # # UNWRAP PHASE_DECIM (RADIAN NUMBER) BEFORE DECIMATION 
+    # phase_data_unwrapped = np.unwrap(phase_data,axis=1) # axis on time dimension
 
     # Decimate
-    # 100,000 Hz -> 100 Hz, decim_factor = 1000
+    # 5000 Hz -> 100 Hz, decim_factor = 50
     # Get length of decimated vector
-    decim_length = len(decimate(phase_data_unwrapped[0,:], decim_factor))
+    # decim_length = len(decimate(phase_data_unwrapped[0,:], decim_factor))
+    decim_length = len(decimate(phase_data[0,:], decim_factor))
     # Initialize phase_decim array
     # Use empty to make sure that we don't impute values
     phase_data_unwrapped_decim = np.empty((nch, decim_length))
@@ -102,7 +89,7 @@ def decim_to_100(directory_to_file,name_of_file,decim_factor=50):
         phase_data_unwrapped_decim[i, :] = decimate(raw_data[i,:], decim_factor)
 
     # Decimate TIME data DON'T use decimate function! The decimate function downsamples the signal
-    # after applying an anti-aliasing filter! Just take every decim_factor (1000th) entry
+    # after applying an anti-aliasing filter! Just take every decim_factor (50th) entry
     time_decim = raw_time[0::decim_factor]
 
     # Check if it is actually 100 Hz
@@ -121,8 +108,8 @@ def decim_to_100(directory_to_file,name_of_file,decim_factor=50):
     #     Lgauge = 8.167619
     # else:
     #     print(1)
-    #     Lgauge = 1.0209523
-    Lgauge = 8.167619
+    #     Lgauge = 2.0419046
+    Lgauge = 2.0419046
     n_FRI = 1.468200 # fiber refractive index
     PSF = 0.78 # photoelastic scaling factor xi
 
@@ -199,7 +186,7 @@ def load_phase_data(directory_to_file,name_of_file):
     return np.double(data),time_datetime
 
 def load_decim_data(directory_to_file,name_of_file):
-    ''' Function to load decimated 100 Hz and process the datetimes
+    ''' Main function to load decimated 100 Hz das data. Function also processes the datetimes
     Args:
         directory_to_file: full directory to file (string)
         name_of_file: .h5 file that you want to decimate (string)
@@ -218,7 +205,7 @@ def load_decim_data(directory_to_file,name_of_file):
     # convert h5 group to double
     return np.double(data),time_datetime
 
-def concatenate_and_save_h5(directory_to_file, output_filename, filetype):
+def concatenate_and_save_h5(directory_to_file, output_filename):
     ''' Function to compile the decimated files, stitching all the files together
     '''
     files = [f for f in os.listdir(directory_to_file) if f.endswith('_decimated100hz.h5')]
@@ -274,8 +261,11 @@ def load_decim_data_helper(directory_to_file,name_of_file):
     return data,time
 
 
-### luna functions
 
+
+
+### luna functions
+## preprocessing functions
 def clean_luna_files(directory_to_file,input_file_name,output_file_name,target_time):
     ''' File to cut raw Luna file
     Input:
@@ -289,7 +279,7 @@ def clean_luna_files(directory_to_file,input_file_name,output_file_name,target_t
     
     '''
     # Use pandas to help cut the data
-    luna_data = pd.read_csv(directory_to_file+input_file_name,sep='\t',skiprows=32).values
+    luna_data = pd.read_csv(directory_to_file+'/'+input_file_name,sep='\t',skiprows=32)
 
     # Get spatial indicies to cut the dataset
     start_top_loop = luna_data.columns.get_loc('75.7894.1')
@@ -298,19 +288,46 @@ def clean_luna_files(directory_to_file,input_file_name,output_file_name,target_t
     end_bot_loop = luna_data.columns.get_loc('49.7738.1')
 
     # Get time indicies to cut the dataset
+    # Change format to get indicies
+    luna_data.iloc[:,0] = pd.to_datetime(luna_data.iloc[:,0], format='%Y-%m-%d %H:%M:%S.%f')
     # Initialize list to store indicies
     target_time_indicies = []
     for time in target_time:
         time_diff = (luna_data.iloc[:,0]-pd.Timestamp(time)).abs()
         target_time_indicies.append(time_diff.idxmin())
 
+    # Now need to change to unix format (microseconds) to save as .h5 file. .h5 doesn't support datetimes so we'll have to convert when we load the data
+    # Computing the unix time https://stackoverflow.com/questions/54313463/pandas-datetime-to-unix-timestamp-seconds
+    luna_data.iloc[:,0] = (luna_data.iloc[:,0] - pd.Timestamp('1970-01-01')) // pd.Timedelta('1us')
+
     # We now have all the indicies needed to cut the dataset
 
-    # Save decimated strain data
+    # Save cut luna data
     with h5py.File(directory_to_file+'/'+output_file_name+'.h5', 'w') as hf:
-        hf.create_dataset('time',  data=luna_data.iloc[target_time_indicies[0]:target_time_indicies[1],0])
-        hf.create_dataset('top-loop',data=luna_data.iloc[target_time_indicies[0]:target_time_indicies[1],start_top_loop:end_top_loop])
-        hf.create_dataset('bot-loop',data=luna_data.iloc[target_time_indicies[0]:target_time_indicies[1],start_bot_loop:end_bot_loop])
+        hf.create_dataset('time',  data=luna_data.iloc[target_time_indicies[0]:target_time_indicies[1],0].values)
+        hf.create_dataset('top-loop',data=luna_data.iloc[target_time_indicies[0]:target_time_indicies[1],start_top_loop:end_top_loop].values)
+        hf.create_dataset('bot-loop',data=luna_data.iloc[target_time_indicies[0]:target_time_indicies[1],start_bot_loop:end_bot_loop].values)
         hf.close()
     return
 
+
+def load_decim_luna_data(directory_to_file,name_of_file):
+    ''' Main function to load cut luna data. Function also processes the datetimes
+    Args:
+        directory_to_file: full directory to file (string)
+        name_of_file: .h5 file that you want to decimate (string)
+
+    Returns:
+        strain_data: numpy double of strain data
+        time: list of datetimes
+
+    Raises:
+    '''
+    file = h5py.File(directory_to_file+'/'+name_of_file+'.h5', 'r+')
+    top_loop = file['top-loop']
+    bot_loop = file['bot-loop']
+    time = file['time']
+    # Convert decimated time data to datetime
+    time_datetime = [datetime.datetime.fromtimestamp(i/1000000) for i in time]
+    # convert h5 group to double
+    return np.double(top_loop),np.double(bot_loop),time_datetime
