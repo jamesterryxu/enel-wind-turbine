@@ -250,11 +250,11 @@ def clean_das_files_odh4(directory_to_file,input_file_name,output_file_name,targ
         .h5 file that contains the cut data, with three fields
     '''
     file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
-    strain = np.double(file['strain']) # all channels (in microstrain)
+    strain = np.double(file['strain']).T # all channels (in microstrain)
+    # Need to transpose to make time x sensor!
     time = np.double(file['time']) # unix time
 
 
-    print(np.shape(time))
 
     # Initialize list to store indices
     target_time_indices = []
@@ -287,6 +287,7 @@ def clean_das_files_odh4(directory_to_file,input_file_name,output_file_name,targ
     bot_d = [328,348]
     mid_d = [303,328]
     top_d = [275,303]
+
 
     # Save cut das data
     with h5py.File(directory_to_file + '/' + output_file_name + '.h5', 'w') as hf:
@@ -333,6 +334,31 @@ def load_decim_data_helper(directory_to_file,name_of_file):
     return data,time
 
 ## analysis functions
+def load_preprocessed_das_data(directory_to_file,input_file_name):
+    ''' Function to load decimated 100 Hz cut and process the datetimes
+    Args:
+        directory_to_file: full directory to file (string)
+        input_file_name: .h5 file that you want to decimate (string)
+
+    Returns:
+        strain: dictionary of different segments containing numpy double of strain data
+        time: list of datetimes
+
+    Raises:
+    '''
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
+
+    # Initialize dictionary to store all data
+    strain = {}
+    strain['bot_a'] = np.double(file['bot_a'])
+    
+    time = file['time']
+    # Convert decimated time data to datetime
+    time_datetime = [datetime.datetime.fromtimestamp(i/1000000) for i in time]
+    # convert h5 group to double
+    return strain,time_datetime
+
+
 def filter_das_data():
     return
 
