@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import datetime
 import os
+import warnings  
 
 
 ### das functions
@@ -109,7 +110,7 @@ def decim_to_100(directory_to_file,name_of_file,decim_factor=50):
     # else:
     #     print(1)
     #     Lgauge = 2.0419046
-    Lgauge = 2.0419046
+    Lgauge = 2.0419046 #NOTE: Change for odh3 data! Lgauge = 8.167619
     n_FRI = 1.468200 # fiber refractive index
     PSF = 0.78 # photoelastic scaling factor xi
 
@@ -201,9 +202,9 @@ def load_decim_data(directory_to_file,name_of_file):
     data = file['strain']
     time = file['time']
     # Convert decimated time data to datetime
-    time_datetime = [datetime.datetime.fromtimestamp(i/1000000) for i in time]
+    # time_datetime = [datetime.datetime.fromtimestamp(i/1000000) for i in time]
     # convert h5 group to double
-    return np.double(data),time_datetime
+    return np.double(data), time #time_datetime
 
 def concatenate_and_save_h5(directory_to_file, output_filename):
     ''' Function to compile the decimated files, stitching all the files together
@@ -236,6 +237,77 @@ def concatenate_and_save_h5(directory_to_file, output_filename):
         f.create_dataset('strain', data=all_strain_data)
         f.create_dataset('time', data=all_time_data)
 
+def clean_das_files_odh4(directory_to_file,input_file_name,output_file_name,target_time):
+    ''' File to cut decimated das file from ODH4. 
+        NOTE: We do flipping in this function. The end goal is to have a dataset that is ready to plot or do analysis with efficiently, with not much more pre-processing work
+    Input:
+        directory_to_file: directory to the folder where the input file lives
+        input_file_name: name of file to be cut
+        output_file_name: name of cut file (should follow naming convention)
+        target_time: list of start and end times, takes a string in the format ('%Y-%m-%d %H:%M:%S') 
+
+    Output:
+        .h5 file that contains the cut data, with three fields
+    '''
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
+    strain = np.double(file['strain']) # all channels (in microstrain)
+    time = np.double(file['time']) # unix time
+
+
+    print(np.shape(time))
+
+    # Initialize list to store indices
+    target_time_indices = []
+    for t in target_time:
+        # Convert the string time to a datetime object, then to Unix time
+        target_t = (pd.Timestamp(t) - pd.Timestamp('1970-01-01')) // pd.Timedelta('1us')
+        # Find the index of the closest time in the 'time' array
+        index = np.abs(time - target_t).argmin()
+        target_time_indices.append(index)
+
+    # NOTE: These indexings are for the ODH4 data! Make sure to change when analyzing the odh3 data.
+    # 4 axes, axis a is closest to door, b is natural progression of cable, CW looking up the tower, etc.
+    # NOTE: We need to reverse the b and d axis
+    # NOTE: TODO: Figure out if we need to reverse the loops or not... it's very confusing, need to check against photos
+    # There are 3 tower segments, bot, mid, top (closest to nacelle)
+    # 12 longitudinal 'segments', each with 2 indicies, e.g. [start_bot_a, end_bot_a]
+    # axis a TODO: Check splicing rules, I think it's exclusive...
+    bot_a = [41,61]
+    mid_a = [61,88]
+    top_a = [88,115]
+    # axis b
+    bot_b = [172,192]
+    mid_b = [146,172]
+    top_b = [119,146]
+    # axis c
+    bot_c = [198,218]
+    mid_c = [218,244]
+    top_c = [244,271]
+    # axis d
+    bot_d = [328,348]
+    mid_d = [303,328]
+    top_d = [275,303]
+
+    # Save cut das data
+    with h5py.File(directory_to_file + '/' + output_file_name + '.h5', 'w') as hf:
+        hf.create_dataset('time', data = time[target_time_indices[0]:target_time_indices[1]])
+        hf.create_dataset('bot_a', data = strain[target_time_indices[0]:target_time_indices[1],bot_a[0]:bot_a[1]])
+        hf.create_dataset('mid_a', data = strain[target_time_indices[0]:target_time_indices[1],mid_a[0]:mid_a[1]])
+        hf.create_dataset('top_a', data = strain[target_time_indices[0]:target_time_indices[1],top_a[0]:top_a[1]])
+        hf.create_dataset('bot_b', data = np.flip(strain[target_time_indices[0]:target_time_indices[1],bot_b[0]:bot_b[1]]))
+        hf.create_dataset('mid_b', data = np.flip(strain[target_time_indices[0]:target_time_indices[1],mid_b[0]:mid_b[1]]))
+        hf.create_dataset('top_b', data = np.flip(strain[target_time_indices[0]:target_time_indices[1],top_b[0]:top_b[1]]))
+        hf.create_dataset('bot_c', data = strain[target_time_indices[0]:target_time_indices[1],bot_c[0]:bot_c[1]])
+        hf.create_dataset('mid_c', data = strain[target_time_indices[0]:target_time_indices[1],mid_c[0]:mid_c[1]])
+        hf.create_dataset('top_c', data = strain[target_time_indices[0]:target_time_indices[1],top_c[0]:top_c[1]])
+        hf.create_dataset('bot_d', data = np.flip(strain[target_time_indices[0]:target_time_indices[1],bot_d[0]:bot_d[1]]))
+        hf.create_dataset('mid_d', data = np.flip(strain[target_time_indices[0]:target_time_indices[1],mid_d[0]:mid_d[1]]))
+        hf.create_dataset('top_d', data = np.flip(strain[target_time_indices[0]:target_time_indices[1],top_d[0]:top_d[1]]))
+        hf.close()
+    return
+
+
+
 # das helper functions
 def sort_filenames_by_time(filenames):
     ''' Helper function to sort filenames
@@ -260,7 +332,12 @@ def load_decim_data_helper(directory_to_file,name_of_file):
     time = file['time']
     return data,time
 
+## analysis functions
+def filter_das_data():
+    return
 
+def min_maz_das_data():
+    return
 
 
 
@@ -281,32 +358,32 @@ def clean_luna_files(directory_to_file,input_file_name,output_file_name,target_t
     # Use pandas to help cut the data
     luna_data = pd.read_csv(directory_to_file+'/'+input_file_name,sep='\t',skiprows=32)
 
-    # Get spatial indicies to cut the dataset
+    # Get spatial indices to cut the dataset
     start_top_loop = luna_data.columns.get_loc('75.7894.1')
     end_top_loop = luna_data.columns.get_loc('87.5726.1')
     start_bot_loop = luna_data.columns.get_loc('36.3708.1')
     end_bot_loop = luna_data.columns.get_loc('49.7738.1')
 
-    # Get time indicies to cut the dataset
-    # Change format to get indicies
+    # Get time indices to cut the dataset
+    # Change format to get indices
     luna_data.iloc[:,0] = pd.to_datetime(luna_data.iloc[:,0], format='%Y-%m-%d %H:%M:%S.%f')
-    # Initialize list to store indicies
-    target_time_indicies = []
+    # Initialize list to store indices
+    target_time_indices = []
     for time in target_time:
         time_diff = (luna_data.iloc[:,0]-pd.Timestamp(time)).abs()
-        target_time_indicies.append(time_diff.idxmin())
+        target_time_indices.append(time_diff.idxmin())
 
     # Now need to change to unix format (microseconds) to save as .h5 file. .h5 doesn't support datetimes so we'll have to convert when we load the data
     # Computing the unix time https://stackoverflow.com/questions/54313463/pandas-datetime-to-unix-timestamp-seconds
     luna_data.iloc[:,0] = (luna_data.iloc[:,0] - pd.Timestamp('1970-01-01')) // pd.Timedelta('1us')
 
-    # We now have all the indicies needed to cut the dataset
+    # We now have all the indices needed to cut the dataset
 
     # Save cut luna data
     with h5py.File(directory_to_file+'/'+output_file_name+'.h5', 'w') as hf:
-        hf.create_dataset('time',  data=luna_data.iloc[target_time_indicies[0]:target_time_indicies[1],0].values)
-        hf.create_dataset('top-loop',data=luna_data.iloc[target_time_indicies[0]:target_time_indicies[1],start_top_loop:end_top_loop].values)
-        hf.create_dataset('bot-loop',data=luna_data.iloc[target_time_indicies[0]:target_time_indicies[1],start_bot_loop:end_bot_loop].values)
+        hf.create_dataset('time',  data=luna_data.iloc[target_time_indices[0]:target_time_indices[1],0].values)
+        hf.create_dataset('top-loop',data=luna_data.iloc[target_time_indices[0]:target_time_indices[1],start_top_loop:end_top_loop].values)
+        hf.create_dataset('bot-loop',data=luna_data.iloc[target_time_indices[0]:target_time_indices[1],start_bot_loop:end_bot_loop].values)
         hf.close()
     return
 
@@ -331,3 +408,104 @@ def load_decim_luna_data(directory_to_file,name_of_file):
     time_datetime = [datetime.datetime.fromtimestamp(i/1000000) for i in time]
     # convert h5 group to double
     return np.double(top_loop),np.double(bot_loop),time_datetime
+
+def datum_retriever_luna_data(directory_to_file,input_file_name,number_of_seconds=60):
+    ''' Function to get zeroed out data for each bolt condition (Used for the brake dataset, last 5 minutes average)
+    Args:
+        directory_to_file: full directory to file (string)
+        name_of_file: .h5 file that you want to decimate (string) (Luna data is sampled at 5 Hz)
+
+    Returns:
+        datum: numpy array of spatial points for each loop, for each bolt configuration
+    '''
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
+    top_loop = file['top-loop']
+    bot_loop = file['bot-loop']
+    time = file['time']
+
+    # Get index to average over
+    sample_freq = 5 # 5 Hz
+    number_of_samples = number_of_seconds * sample_freq
+
+    # Check time is ok compared to number of samples
+    if number_of_samples > len(time):
+        raise ValueError('Requested number of seconds is too large')
+
+    # Take the average over the last number_of_seconds
+    top_loop_datum = np.mean(top_loop[-number_of_samples:],
+                             axis=0)
+    bot_loop_datum = np.mean(bot_loop[-number_of_samples:],
+                             axis=0)
+    
+    # Get the min and max to confirm function works
+    # Get the range (min and max) to confirm function works
+    top_loop_range = np.max(top_loop[-number_of_samples:], axis=0) - np.min(top_loop[-number_of_samples:], axis=0)
+    bot_loop_range = np.max(bot_loop[-number_of_samples:], axis=0) - np.min(bot_loop[-number_of_samples:], axis=0)
+
+    # Check if the difference between min and max is greater than 15 microstrain for any sensor
+    if np.any(top_loop_range > 15) or np.any(bot_loop_range > 15):
+        warnings.warn('One or more sensors have a microstrain range greater than 15 over the specified period.', UserWarning)
+
+    return top_loop_datum, bot_loop_datum
+
+
+def zero_out_function_luna_data(directory_to_file,input_file_name,number_of_seconds=60):
+    ''' Function to save another .h5 file that is zeroed out based on bolt configuration, using the datam of the last ~1 minute of data from the brake test data
+        Note that we have to think a bit more carefully about the zeroing of the datasets that have bci-bcj data, what should we zero out by?
+    Args:
+        directory_to_file:
+        name_of_file:
+
+    Returns:
+        Saves an .h5 file that is zeroed accordingly
+    
+    '''
+    # load data
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
+    top_loop = file['top-loop']
+    bot_loop = file['bot-loop']
+    time = file['time']
+
+    # get bolt configuration based on input_file_name
+    bolt_configuration = input_file_name[-3:]
+
+    top_loop_datum, bot_loop_datum = datum_retriever_luna_data(directory_to_file=directory_to_file,
+                                                     input_file_name='brake-'+bolt_configuration,
+                                                     number_of_seconds=number_of_seconds)
+    
+    # subtract datum for all time steps
+    # Note that the datum is just one value for every spatial point, we want to subtract this per spatial point for every point in the time series
+    top_loop_zeroed = top_loop - top_loop_datum
+    bot_loop_zeroed = bot_loop - bot_loop_datum
+
+    # Save zeroed data
+    with h5py.File(directory_to_file+'/'+input_file_name+'_zeroed.h5', 'w') as hf:
+        hf.create_dataset('time',  data=time)
+        hf.create_dataset('top-loop',data= top_loop_zeroed )
+        hf.create_dataset('bot-loop',data= bot_loop_zeroed )
+        hf.close()
+    return
+
+    
+
+
+# analysis functions
+
+def min_max(directory_to_file, input_file_name):
+    ''' Function to get the minimum and maximum strain envelopes for plotting purposes
+    Args:
+        directory_to_file:
+        name_of_file:
+
+    Returns:
+    '''
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
+    top_loop = file['top-loop']
+    bot_loop = file['bot-loop']
+    time = file['time']
+    return
+
+
+
+# plotting functions
+
