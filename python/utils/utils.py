@@ -1,14 +1,20 @@
 import h5py
 import numpy as np
 import pandas as pd
-from scipy.signal import decimate
-from scipy.signal import butter
-from scipy.signal import filtfilt
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 import datetime
 import os
 import warnings  
+
+# signal processing packages
+from scipy.signal import decimate
+from scipy.signal import butter
+from scipy.signal import filtfilt
+from scipy.signal import sosfiltfilt
+
+# plotting packages
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+
 
 
 ### das functions
@@ -346,24 +352,169 @@ def load_preprocessed_das_data(directory_to_file,input_file_name):
 
     Raises:
     '''
+    # list of tower segments
+    segments = ['bot_a', 'mid_a', 'top_a',
+                'bot_b', 'mid_b', 'top_b',
+                'bot_c', 'mid_c', 'top_c',
+                'bot_d', 'mid_d', 'top_d']
+    
     file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
 
     # Initialize dictionary to store all data
     strain = {}
-    strain['bot_a'] = np.double(file['bot_a'])
-    
+    for segment in segments:
+        strain[segment] = np.double(file[segment])
+
+
     time = file['time']
     # Convert decimated time data to datetime
     time_datetime = [datetime.datetime.fromtimestamp(i/1000000) for i in time]
     # convert h5 group to double
-    return strain,time_datetime
+    return strain,time_datetime,time
 
 
-def filter_das_data():
+def filter_das_data(directory_to_file,input_file_name,cutoff_freq=0.1,order=2):
+    ''' Function to filter data using a high pass filter
+    Args:
+        directory_to_file: full directory to file (string)
+        input_file_name: .h5 file that you want to decimate (string)
+
+    Returns:
+        strain: dictionary of different segments containing numpy double of strain data that are now filtered
+        time: list of datetimes
+
+    Raises:
+    '''
+    # list of tower segments
+    segments = ['bot_a', 'mid_a', 'top_a',
+                'bot_b', 'mid_b', 'top_b',
+                'bot_c', 'mid_c', 'top_c',
+                'bot_d', 'mid_d', 'top_d']
+
+    # load in data
+    strain, _,time = load_preprocessed_das_data(directory_to_file=directory_to_file,
+                               input_file_name=input_file_name)
+    
+    # get the sampling rate
+    # need to make sure that the sampling rate is uniform
+    time_diffs = np.diff(time)
+    if not np.all(time_diffs == time_diffs[0]):
+        warnings.warn('Time intervals are not uniform.', UserWarning)
+
+    sampling_freq = (1 / time_diffs[0] )*1000000 # should be 100 Hz, unix time causing having to multiply by 1000000?
+    print(sampling_freq)
+
+
+    # getting the nyquist frequency and calculating the critical frequencies used for filter
+    nyquist_freq = 0.5 * sampling_freq
+    critical_freq = cutoff_freq / nyquist_freq
+
+    high_pass_filter = butter(N=order,
+                              Wn = critical_freq,
+                              btype='highpass',
+                              output = 'sos')
+    
+    # initialize the filtered dataset
+    strain_filtered = {}
+
+    # filter al data, loop through the segments
+    for segment in segments:
+        strain_filtered[segment] = sosfiltfilt(sos = high_pass_filter, 
+                                      x = strain[segment],
+                                      axis=0)
+    
+    # Save cut das data
+    with h5py.File(directory_to_file + '/' + input_file_name + '_filtered.h5', 'w') as hf:
+        hf.create_dataset('time', data = time)
+        for segment in segments:
+            hf.create_dataset(segment,data=strain_filtered[segment])
+
+        hf.close()
     return
 
-def min_maz_das_data():
+
+def min_max_das_data(directory_to_file,input_file_name):
+    ''' Function to get the minimum and maximum of preprocessed das data
+    Args:
+        directory_to_file: full directory to file (string)
+        input_file_name: .h5 file that you want to decimate (string)
+
+    Returns:
+        strain: dictionary of different segments containing numpy double of strain data that are now filtered
+        time: list of datetimes
+
+    Raises:
+    '''
+    # list of tower segments NOTE: Should eventually put this in a class or make it a global variable?
+    segments = ['bot_a', 'mid_a', 'top_a',
+                'bot_b', 'mid_b', 'top_b',
+                'bot_c', 'mid_c', 'top_c',
+                'bot_d', 'mid_d', 'top_d']
+    
+    # load in data
+    strain, _,time = load_preprocessed_das_data(directory_to_file=directory_to_file,
+                               input_file_name=input_file_name)
+    
+    # initialize min and max dictionaries
+    min_strain = {}
+    max_strain = {}
+
+    for segment in segments:
+        min_strain[segment] = np.nanmin(a = strain[segment],
+                                        axis = 0)
+        max_strain[segment] = np.nanmax(a = strain[segment],
+                                        axis = 0)
+    
+    # Save the data arrays
+    with h5py.File(directory_to_file + '/' + input_file_name + '_envelopes.h5', 'w') as hf:
+        hf.create_dataset('time', data = time)
+        for segment in segments:
+            hf.create_dataset(segment+'min_strain',data=min_strain[segment])
+            hf.create_dataset(segment+'max_strain',data=max_strain[segment])
+        hf.close()
+
     return
+
+# Helper function to load min and max strain
+def load_min_max_das_data(directory_to_file,input_file_name):
+    ''' Function to load min and max strain envelopes and process the datetimes
+    Args:
+        directory_to_file: full directory to file (string)
+        input_file_name: .h5 file that you want to decimate (string)
+
+    Returns:
+        strain: dictionary of different segments containing numpy double of strain data
+        time: list of datetimes
+
+    Raises:
+    '''
+    # list of tower segments
+    segments = ['bot_a', 'mid_a', 'top_a',
+                'bot_b', 'mid_b', 'top_b',
+                'bot_c', 'mid_c', 'top_c',
+                'bot_d', 'mid_d', 'top_d']
+    
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
+
+    # Initialize dictionary to store all data
+    min_strain = {}
+    max_strain = {}
+
+    for segment in segments:
+        min_strain[segment] = np.double(file[segment+'min_strain'])
+        max_strain[segment] = np.double(file[segment+'max_strain'])
+
+
+    time = file['time']
+    # Convert decimated time data to datetime
+    time_datetime = [datetime.datetime.fromtimestamp(i/1000000) for i in time]
+    # convert h5 group to double
+    return min_strain,max_strain,time_datetime,time
+
+
+
+# Use fdd from package...
+
 
 
 
@@ -521,7 +672,7 @@ def min_max(directory_to_file, input_file_name):
     ''' Function to get the minimum and maximum strain envelopes for plotting purposes
     Args:
         directory_to_file:
-        name_of_file:
+        input_file_name:
 
     Returns:
     '''
@@ -534,4 +685,11 @@ def min_max(directory_to_file, input_file_name):
 
 
 # plotting functions
+def plot_min_max(directory_to_file, input_file_name):
+    ''' Function to plot processed min, max data
+    Args:
+        directory_to_file:
+        input_file_name:
 
+    Returns:
+    '''
