@@ -667,6 +667,35 @@ def zero_out_function_luna_data(directory_to_file,input_file_name,number_of_seco
 
 
 # analysis functions
+def load_preprocessed_luna_data(directory_to_file,input_file_name):
+    ''' Function to load cut luna data and process the datetimes
+    Args:
+        directory_to_file: full directory to file (string)
+        input_file_name: .h5 file that you want to decimate (string)
+
+    Returns:
+        strain: dictionary of different segments containing numpy double of strain data
+        time: list of datetimes
+
+    Raises:
+    '''
+    # list of strain segments
+    segments = ['top-loop', 'bot-loop']
+
+    
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
+
+    # Initialize dictionary to store all data
+    strain = {}
+    for segment in segments:
+        strain[segment] = np.double(file[segment])
+
+
+    time = file['time']
+    # Convert decimated time data to datetime
+    time_datetime = [datetime.datetime.fromtimestamp(i/1000000) for i in time]
+    # convert h5 group to double
+    return strain,time_datetime,time
 
 def min_max(directory_to_file, input_file_name):
     ''' Function to get the minimum and maximum strain envelopes for plotting purposes
@@ -683,13 +712,70 @@ def min_max(directory_to_file, input_file_name):
     return
 
 
-
-# plotting functions
-def plot_min_max(directory_to_file, input_file_name):
-    ''' Function to plot processed min, max data
+def min_max_luna_data(directory_to_file,input_file_name):
+    ''' Function to get the minimum and maximum of preprocessed luna data
     Args:
-        directory_to_file:
-        input_file_name:
+        directory_to_file: full directory to file (string)
+        input_file_name: .h5 file that you want to decimate (string)
 
     Returns:
+        strain: dictionary of different segments containing numpy double of strain data that are now filtered
+        time: list of datetimes
+
+    Raises:
     '''
+    # list of tower segments NOTE: Should eventually put this in a class or make it a global variable?
+    segments = ['top-loop', 'bot-loop']
+    
+    # load in data
+    strain, _,_ = load_preprocessed_luna_data(directory_to_file=directory_to_file,
+                               input_file_name=input_file_name)
+    
+    # initialize min and max dictionaries
+    min_strain = {}
+    max_strain = {}
+
+    for segment in segments:
+        min_strain[segment] = np.nanmin(a = strain[segment],
+                                        axis = 0)
+        max_strain[segment] = np.nanmax(a = strain[segment],
+                                        axis = 0)
+    
+    # Save the data arrays
+    with h5py.File(directory_to_file + '/' + input_file_name + '_envelopes.h5', 'w') as hf:
+        for segment in segments:
+            hf.create_dataset(segment+'min_strain',data=min_strain[segment])
+            hf.create_dataset(segment+'max_strain',data=max_strain[segment])
+        hf.close()
+
+    return
+
+# Helper function to load min and max strain
+def load_min_max_luna_data(directory_to_file,input_file_name):
+    ''' Function to load min and max strain envelopes and process the datetimes
+    Args:
+        directory_to_file: full directory to file (string)
+        input_file_name: .h5 file that you want to decimate (string)
+
+    Returns:
+        strain: dictionary of different segments containing numpy double of strain data
+        time: list of datetimes
+
+    Raises:
+    '''
+    # list of tower segments
+    segments = ['top-loop', 'bot-loop']
+
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
+
+    # Initialize dictionary to store all data
+    min_strain = {}
+    max_strain = {}
+
+    for segment in segments:
+        min_strain[segment] = np.double(file[segment+'min_strain'])
+        max_strain[segment] = np.double(file[segment+'max_strain'])
+
+    # convert h5 group to double
+    return min_strain,max_strain
+
