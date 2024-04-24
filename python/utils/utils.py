@@ -765,7 +765,7 @@ def load_min_max_luna_data(directory_to_file,input_file_name):
     '''
     # list of tower segments
     segments = ['top-loop', 'bot-loop']
-
+    
     file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
 
     # Initialize dictionary to store all data
