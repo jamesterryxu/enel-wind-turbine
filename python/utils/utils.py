@@ -21,17 +21,17 @@ import matplotlib.ticker as ticker
 
 # preprocessing functions
 
-def raw_to_phase(directory_to_file,name_of_file):
+def raw_to_phase(directory_to_file,input_file_name):
     ''' Function to reformat the data fields in the h5 file (Doesn't decimate or unwrap)
     Args:
         directory_to_file: full directory to file (string)
-        name_of_file: .h5 file that you want to decimate (string)
+        input_file_name: .h5 file that you want to decimate (string)
     Returns:
 
     Raises:
     '''
     # Open the HDF5 file
-    file = h5py.File(directory_to_file+'/'+name_of_file+'.h5', 'r')
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r')
     # Read the dataset
     raw_data = file['/Acquisition/Raw[0]/RawData']
     raw_data = np.double(raw_data) # Convert to double
@@ -45,16 +45,16 @@ def raw_to_phase(directory_to_file,name_of_file):
     phase_data = raw_data / 10430.378350470453 # This is (2**15)/pi
     
     # Save decimated strain data
-    with h5py.File(directory_to_file+'/'+name_of_file+'_phase'+'.h5', 'w') as hf:
+    with h5py.File(directory_to_file+'/'+input_file_name+'_phase'+'.h5', 'w') as hf:
         hf.create_dataset('phase',  data=phase_data)
         hf.create_dataset('time',data=raw_time)
         hf.close()
 
-def decim_to_100(directory_to_file,name_of_file,decim_factor=50):
+def decim_to_100(directory_to_file,input_file_name,decim_factor=50):
     ''' Function to decimate the raw files into 100 Hz, and convert phase data to microstrain data
     Args:
         directory_to_file: full directory to file (string)
-        name_of_file: .h5 file that you want to decimate (string)
+        input_file_name: .h5 file that you want to decimate (string)
         decim_factor: factor to decimate
 
     Returns:
@@ -63,12 +63,13 @@ def decim_to_100(directory_to_file,name_of_file,decim_factor=50):
     Raises:
     '''
     # Open the HDF5 file
-    file = h5py.File(directory_to_file+'/'+name_of_file+'.h5', 'r')
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r')
     # Read the dataset
     raw_data = file['/Acquisition/Raw[0]/RawData']
     raw_data = np.double(raw_data) # Convert to double
     # Transpose data
     raw_data = raw_data.T
+    # import pdb; pdb.set_trace()
     nch, _ = raw_data.shape
     # Import time
     raw_time = np.double(file['/Acquisition/Raw[0]/RawDataTime'])
@@ -123,7 +124,7 @@ def decim_to_100(directory_to_file,name_of_file,decim_factor=50):
     strain_decim = (Lambd / (4*np.pi*n_FRI*Lgauge*PSF)) * phase_data_unwrapped_decim * 1e6 # microstrain
     
     # Save decimated strain data
-    with h5py.File(directory_to_file+'/'+name_of_file+'_decimated100hz'+'.h5', 'w') as hf:
+    with h5py.File(directory_to_file+'/'+input_file_name+'_decimated100hz'+'.h5', 'w') as hf:
         hf.create_dataset('strain',  data=strain_decim)
         hf.create_dataset('time',data=time_decim)
         hf.close()
@@ -172,11 +173,11 @@ def batch_decim_to_100(directory):
         decim_to_100(directory, name_without_ext)
         print(f"{file} decimated")
 
-def load_phase_data(directory_to_file,name_of_file):
+def load_phase_data(directory_to_file,input_file_name):
     ''' Function to load decimated 100 Hz and process the datetimes
     Args:
         directory_to_file: full directory to file (string)
-        name_of_file: .h5 file that you want to decimate (string)
+        input_file_name: .h5 file that you want to decimate (string)
 
     Returns:
         phase_data: numpy double of strain data
@@ -184,7 +185,7 @@ def load_phase_data(directory_to_file,name_of_file):
 
     Raises:
     '''
-    file = h5py.File(directory_to_file+'/'+name_of_file+'.h5', 'r+')
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
     data = file['phase']
     time = file['time']
     # Convert decimated time data to datetime
@@ -192,11 +193,11 @@ def load_phase_data(directory_to_file,name_of_file):
     # convert h5 group to double
     return np.double(data),time_datetime
 
-def load_decim_data(directory_to_file,name_of_file):
+def load_decim_data(directory_to_file,input_file_name):
     ''' Main function to load decimated 100 Hz das data. Function also processes the datetimes
     Args:
         directory_to_file: full directory to file (string)
-        name_of_file: .h5 file that you want to decimate (string)
+        input_file_name: .h5 file that you want to decimate (string)
 
     Returns:
         strain_data: numpy double of strain data
@@ -204,7 +205,7 @@ def load_decim_data(directory_to_file,name_of_file):
 
     Raises:
     '''
-    file = h5py.File(directory_to_file+'/'+name_of_file+'.h5', 'r+')
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
     data = file['strain']
     time = file['time']
     # Convert decimated time data to datetime
@@ -212,7 +213,7 @@ def load_decim_data(directory_to_file,name_of_file):
     # convert h5 group to double
     return np.double(data), time #time_datetime
 
-def concatenate_and_save_h5(directory_to_file, output_filename):
+def concatenate_and_save_h5(directory_to_file, output_filename='_full'):
     ''' Function to compile the decimated files, stitching all the files together
     '''
     files = [f for f in os.listdir(directory_to_file) if f.endswith('_decimated100hz.h5')]
@@ -278,7 +279,7 @@ def clean_das_files_odh4(directory_to_file,input_file_name,output_file_name,targ
     # There are 3 tower segments, bot, mid, top (closest to nacelle)
     # 12 longitudinal 'segments', each with 2 indicies, e.g. [start_bot_a, end_bot_a]
     # axis a TODO: Check splicing rules, I think it's exclusive...
-    bot_a = [41,61]
+    bot_a = [41,61] # Should start at 43 instead?
     mid_a = [61,88]
     top_a = [88,115]
     # axis b
@@ -321,11 +322,11 @@ def sort_filenames_by_time(filenames):
     '''
     return sorted(filenames, key=lambda x: datetime.datetime.strptime(x.split('_')[1], "%Y-%m-%dT%H%M%S%z"))
 
-def load_decim_data_helper(directory_to_file,name_of_file):
+def load_decim_data_helper(directory_to_file,input_file_name):
     ''' Helper function to load decimated 100 Hz
     Args:
         directory_to_file: full directory to file (string)
-        name_of_file: .h5 file that you want to decimate (string)
+        input_file_name: .h5 file that you want to decimate (string)
         decim_factor: factor to decimate
 
     Returns:
@@ -334,7 +335,7 @@ def load_decim_data_helper(directory_to_file,name_of_file):
 
     Raises:
     '''
-    file = h5py.File(directory_to_file+'/'+name_of_file+'.h5', 'r+')
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
     data = file['strain']
     time = file['time']
     return data,time
@@ -348,7 +349,8 @@ def load_preprocessed_das_data(directory_to_file,input_file_name):
 
     Returns:
         strain: dictionary of different segments containing numpy double of strain data
-        time: list of datetimes
+        time_datetime: list of datetimes
+        time: numpy array of unix time
 
     Raises:
     '''
@@ -366,11 +368,11 @@ def load_preprocessed_das_data(directory_to_file,input_file_name):
         strain[segment] = np.double(file[segment])
 
 
-    time = file['time']
+    time = file['time'] 
     # Convert decimated time data to datetime
     time_datetime = [datetime.datetime.fromtimestamp(i/1000000) for i in time]
     # convert h5 group to double
-    return strain,time_datetime,time
+    return strain,time_datetime,time[()] # return a numpy array
 
 
 def filter_das_data(directory_to_file,input_file_name,cutoff_freq=0.1,order=2):
@@ -565,11 +567,11 @@ def clean_luna_files(directory_to_file,input_file_name,output_file_name,target_t
     return
 
 
-def load_decim_luna_data(directory_to_file,name_of_file):
+def load_decim_luna_data(directory_to_file,input_file_name):
     ''' Main function to load cut luna data. Function also processes the datetimes
     Args:
         directory_to_file: full directory to file (string)
-        name_of_file: .h5 file that you want to decimate (string)
+        input_file_name: .h5 file that you want to decimate (string)
 
     Returns:
         strain_data: numpy double of strain data
@@ -577,7 +579,7 @@ def load_decim_luna_data(directory_to_file,name_of_file):
 
     Raises:
     '''
-    file = h5py.File(directory_to_file+'/'+name_of_file+'.h5', 'r+')
+    file = h5py.File(directory_to_file+'/'+input_file_name+'.h5', 'r+')
     top_loop = file['top-loop']
     bot_loop = file['bot-loop']
     time = file['time']
@@ -590,7 +592,7 @@ def datum_retriever_luna_data(directory_to_file,input_file_name,number_of_second
     ''' Function to get zeroed out data for each bolt condition (Used for the brake dataset, last 5 minutes average)
     Args:
         directory_to_file: full directory to file (string)
-        name_of_file: .h5 file that you want to decimate (string) (Luna data is sampled at 5 Hz)
+        input_file_name: .h5 file that you want to decimate (string) (Luna data is sampled at 5 Hz)
 
     Returns:
         datum: numpy array of spatial points for each loop, for each bolt configuration
@@ -631,7 +633,7 @@ def zero_out_function_luna_data(directory_to_file,input_file_name,number_of_seco
         Note that we have to think a bit more carefully about the zeroing of the datasets that have bci-bcj data, what should we zero out by?
     Args:
         directory_to_file:
-        name_of_file:
+        input_file_name:
 
     Returns:
         Saves an .h5 file that is zeroed accordingly
