@@ -15,6 +15,9 @@ from scipy.signal import sosfiltfilt
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.lines import Line2D
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.dates as mdates
+
 
 # import some utitlity functions
 from utils.utils import load_min_max_luna_data, load_preprocessed_das_data
@@ -175,90 +178,195 @@ def plot_das_time_series(directory_to_file, input_file_name,channels,title,trans
 
 
 
-def plot_das_time_series_one_axis(directory_to_file, input_file_name, axis='a', title='DAS Time Series', transparency=0.25):
-    ''' 
-    Function to plot time series data of DAS data for all indices within a specified axis in individual subplots, stacked vertically.
-    
+
+def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a', title='DAS Time Series', target_time=None, transparency=0.25, elev=30, azim=30, time_marker=None):
+    '''
+    Function to plot 3D time series data of DAS data for all indices within a specified axis.
+
     Args:
         directory_to_file: directory to file location
         input_file_name: file name to plot
         axis: specific axis to plot ('a', 'b', 'c', or 'd')
         title: title of the plot
-
+        elev: Elevation angle in the z plane
+        azim: Azimuthal angle in the x,y plane
+        time_marker: list of datetimes for where we plot a plane with constant time
     '''
     # Load data
-    strain,time_datetime,_ = load_preprocessed_das_data(directory_to_file = directory_to_file,
-                               input_file_name = input_file_name)
+    strain, time_datetime, time = load_preprocessed_das_data(directory_to_file=directory_to_file,
+                                                         input_file_name=input_file_name)
+
+
+    # Get time indices for target times
+    if target_time is None:
+        pass
+    else:
+        # Initialize list to store indices
+        target_time_indices = []
+        for t in target_time:
+            # Convert the string time to a datetime object, then to Unix time
+            target_t = (pd.Timestamp(t) - pd.Timestamp('1970-01-01')) // pd.Timedelta('1us')
+            # Find the index of the closest time in the 'time' array
+            index = np.abs(time - target_t).argmin()
+            target_time_indices.append(index)
+    
+    # Convert datetime to Matplotlib float date format for plotting
+    time_floats = mdates.date2num(time_datetime[target_time_indices[0]:target_time_indices[1]])
     
     bot_name = 'bot_' + axis
     mid_name = 'mid_' + axis
     top_name = 'top_' + axis
-    
-    # Calculate total height of each segment assuming 1 m spacing
-    segment_height = strain[bot_name].shape[0]
-    mid_offset = segment_height + 2 # 2 meter gap between bottom and mid
-    top_offset = mid_offset + segment_height + 2 # 2 meter gap between mid and top
+
+    # Calculate total height of each segment assuming 1 m spacing, each dataset is time x num_sensors
+    bot_segment_height = strain[bot_name].shape[1]
+    mid_segment_height = strain[mid_name].shape[1]
+    top_segment_height = strain[top_name].shape[1]
+
+    mid_offset = bot_segment_height + 2  # 2 meter gap between bottom and mid
+    top_offset = mid_segment_height + mid_offset + 2  # 2 meter gap between mid and top
 
     # Create distance array
-    distance_bot = np.arange(segment_height)
-    distance_mid = np.arange(segment_height) + mid_offset
-    distance_top = np.arange(segment_height) + top_offset
+    distance_bot = np.arange(bot_segment_height)
+    distance_mid = np.arange(mid_segment_height) + mid_offset
+    distance_top = np.arange(top_segment_height) + top_offset
     total_distance = np.concatenate((distance_bot, distance_mid, distance_top))
-    # import pdb; pdb.set_trace()
+
     # Concatenating strain data
-    total_strain = np.vstack([strain[bot_name], strain[mid_name], strain[top_name]])
+    total_strain = np.vstack([strain[bot_name].T, strain[mid_name].T, strain[top_name].T])  # total_strain (num_sensors x time)
 
-    ## Plotting
-    # plotting strain for each sensor
-    fig, ax1 = plt.subplots(1, 1, figsize=(12, 6))
-    ax1.set_xlabel('Time')
-    ax1.set_ylabel('Microstrain')
-    for t in range(total_strain.shape[1]):
-        ax1.plot(time_datetime,total_strain[:, t], color='tab:blue', alpha=transparency)
-    ax1.tick_params(axis='y', labelcolor='tab:blue')
+    ## Creating 3D plot
+    fig = plt.figure(figsize=(20, 20))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title(title)
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Distance (m)')
+    ax.set_zlabel('Microstrain')
 
-    # plotting distance for each sensor
-    ax2 = ax1.twinx()
-    ax2.set_ylabel('Distance (m)', color='tab:red')
-    ax2.plot(time_datetime, total_distance, color='tab:red', alpha=transparency)
-    ax2.tick_params(axis='y', labelcolor='tab:red')
+    # plotting each sensor's time series
+    for i in range(total_strain.shape[0]):
+        y = np.full_like(time_floats, total_distance[i])  # Broadcast distance to match the size of time_floats
+        ax.plot(time_floats, y, total_strain[i, target_time_indices[0]:target_time_indices[1]], color='tab:blue', alpha=transparency)
 
-    fig.tight_layout()
+    # Setting the view angle
+    ax.view_init(elev=elev, azim=azim)
+
+    # Formatting the x-axis to display datetime
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
+    ax.set_box_aspect(aspect=(4, 1, 1))
+    # Get rid of colored axes planes
+    # First remove fill
+    ax.xaxis.pane.fill = False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
+
+    # Now set color to white (or whatever is "invisible")
+    # ax.xaxis.pane.set_edgecolor('w')
+    # ax.yaxis.pane.set_edgecolor('w')
+    # ax.zaxis.pane.set_edgecolor('w')
+
+    #  Bonus: To get rid of the grid as well:
+    # ax.grid(False)
+
+
+
     plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+# def plot_das_time_series_one_axis(directory_to_file, input_file_name, axis='a', title='DAS Time Series', transparency=0.25):
+#     ''' 
+#     Function to plot time series data of DAS data for all indices within a specified axis in individual subplots, stacked vertically.
+    
+#     Args:
+#         directory_to_file: directory to file location
+#         input_file_name: file name to plot
+#         axis: specific axis to plot ('a', 'b', 'c', or 'd')
+#         title: title of the plot
+
+#     '''
+#     # Load data
+#     strain,time_datetime,_ = load_preprocessed_das_data(directory_to_file = directory_to_file,
+#                                input_file_name = input_file_name)
+    
+#     bot_name = 'bot_' + axis
+#     mid_name = 'mid_' + axis
+#     top_name = 'top_' + axis
+    
+#     # Calculate total height of each segment assuming 1 m spacing, each dataset is time x num_sensors
+#     bot_segment_height = strain[bot_name].shape[1]
+#     mid_segment_height = strain[mid_name].shape[1]
+#     top_segment_height = strain[top_name].shape[1]
+    
+#     mid_offset = bot_segment_height + 2 # 2 meter gap between bottom and mid
+#     top_offset = mid_segment_height + mid_offset + 2 # 2 meter gap between mid and top
+
+#     # Create distance array
+#     distance_bot = np.arange(bot_segment_height)
+#     distance_mid = np.arange(mid_segment_height) + mid_offset
+#     distance_top = np.arange(top_segment_height) + top_offset
+#     total_distance = np.concatenate((distance_bot, distance_mid, distance_top))
+#     # print(total_distance)
+#     # import pdb; pdb.set_trace()
+#     # Concatenating strain data
+#     total_strain = np.vstack([strain[bot_name].T, strain[mid_name].T, strain[top_name].T])
+#     # print(np.shape(total_strain))
+
+#     ## Plotting
+#     fig, ax1 = plt.subplots(1, 1, figsize=(12, 6))
+#     ax1.set_xlabel('Time')
+#     ax1.set_ylabel('Microstrain')
+    
+#     # plotting strain for each sensor
+#     for i in range(total_strain.shape[0]):
+#         ax1.plot(time_datetime, total_strain[i, :], alpha=transparency)
+    
+#     ax2 = ax1.twinx()
+#     ax2.set_ylabel('Distance (m)', color='tab:red')
+#     ax2.plot([time_datetime[0], time_datetime[-1]], [total_distance, total_distance], color='tab:red', alpha=transparency)
+#     ax2.set_ylim(bottom=0, top=np.max(total_distance) + 10)  # Adjust as needed
+#     ax2.tick_params(axis='y', labelcolor='tab:red')
+
+#     fig.tight_layout()
+#     plt.show()
     
 
-    # # Number of sensors (indices)
-    # num_sensors = strain['bot_a'].shape[1]
 
-    # # Find global min and max strain values for uniform y-axis scaling
-    # min_strain = np.min(strain[f'bot_{axis}'])
-    # max_strain = np.max(strain[f'bot_{axis}'])
 
-    # # Setup plot - determine layout
-    # fig, axs = plt.subplots(num_sensors, 1, figsize=(12, 2 * num_sensors), sharex=True)
-    # fig.suptitle(title, fontsize=16)
 
-    # # Plot each sensor's time series in its own subplot
-    # for i in range(num_sensors):
-    #     if num_sensors == 1:
-    #         ax = axs
-    #     else:
-    #         ax = axs[i]
-    #     ax.plot(time_datetime, strain['bot_a'][:, i], color='tab:blue', alpha=transparency)
-    #     ax.grid(True)
-    #     ax.set_ylim(min_strain, max_strain) # Uniform y-axis scaling
-    #     # Remove horizontal spines
-    #     ax.spines['top'].set_visible(False)
-    #     ax.spines['bottom'].set_visible(False)
-    #     # Add right y-axis with sensor number
-    #     sec_ax = ax.secondary_yaxis('right')
-    #     sec_ax.set_yticks([])
-    #     sec_ax.set_ylabel(f'Sensor {i + 1}')
-    # Labeling and layout adjustments
-    # axs[-1].set_xlabel('Time')
-    # axs[0].set_ylabel('Microstrain')
-    # plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust the layout to make room for the title
-    # plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
