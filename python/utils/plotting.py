@@ -247,6 +247,15 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
         y = np.full_like(time_floats, total_distance[i])  # Broadcast distance to match the size of time_floats
         ax.plot(time_floats, y, total_strain[i, target_time_indices[0]:target_time_indices[1]], color='tab:blue', alpha=transparency)
 
+
+    if time_marker:
+        time_marker_floats = mdates.date2num(pd.to_datetime(time_marker))
+        for tm in time_marker_floats:
+            X = np.full((2, 2), tm)
+            Y, Z = np.meshgrid(np.linspace(min(total_distance), max(total_distance), 2), np.linspace(total_strain.min(), total_strain.max(), 2))
+            ax.plot_surface(X, Y, Z, color='tab:red', alpha=0.75)
+
+
     # Setting the view angle
     ax.view_init(elev=elev, azim=azim)
 
