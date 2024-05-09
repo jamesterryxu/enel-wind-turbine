@@ -13,7 +13,6 @@ from scipy.signal import sosfiltfilt
 
 # plotting packages
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.dates as mdates
@@ -236,9 +235,10 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     total_strain = np.vstack([strain[bot_name].T, strain[mid_name].T, strain[top_name].T])  # total_strain (num_sensors x time)
 
     ## Creating 3D plot
-    fig = plt.figure(dpi=300)
+    # fig = plt.figure(figsize=plt.figaspect(0.1)*10)
+    fig = plt.figure(figsize=(20, 10),dpi=300)
     ax = fig.add_subplot(111, projection='3d')
-    ax.set_title(title, pad=-50)
+    ax.set_title(title, y=.75)
     ax.set_xlabel('Time', labelpad=20)
     ax.set_ylabel('Distance (m)')
     ax.set_zlabel('Microstrain', labelpad=5)
@@ -248,6 +248,7 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     for i in range(total_strain.shape[0]):
         y = np.full_like(time_floats, total_distance[i])  # Broadcast distance to match the size of time_floats
         ax.plot(time_floats, y, total_strain[i, target_time_indices[0]:target_time_indices[1]], color='tab:blue', alpha=transparency)
+
 
 
     if time_marker:
@@ -270,14 +271,14 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     # Formatting the x-axis to display datetime
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
-    # ax.set_box_aspect(aspect=(4, 1, 1))
-    ax.set_box_aspect([4,1,1])
+    ax.set_box_aspect(aspect=(4, 1.5, 1))
+    # ax.set_box_aspect([4,1,1])
     # Get rid of colored axes planes
     # First remove fill
     ax.xaxis.pane.fill = False
     ax.yaxis.pane.fill = False
     ax.zaxis.pane.fill = False
-
+    # ax.get_proj = lambda: np.dot(Axes3D.get_proj(ax), np.diag([1, 2,0.5, 1]))
 
 
     # Now set color to white (or whatever is "invisible")
@@ -290,7 +291,7 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     # plt.subplots_adjust(left=-0.05, right=1.05, top=1, bottom=0, wspace=0.05, hspace=-0.1)
     plt.tight_layout() # Adjust as needed
     # plt.savefig('test.png', bbox_inches='tight',pad_inches = 0, dpi = 300)
-    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    plt.subplots_adjust(left=-.25, right=1.25, top=1.5, bottom=-.4)
     plt.show()
     
 
