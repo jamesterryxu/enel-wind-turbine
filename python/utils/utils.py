@@ -11,9 +11,6 @@ from scipy.signal import butter
 from scipy.signal import filtfilt
 from scipy.signal import sosfiltfilt
 
-# plotting packages
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 
 #import pdb; pdb.set_trace() Useful for debugging!
 
@@ -94,7 +91,7 @@ def decim_to_100(directory_to_file,input_file_name,decim_factor=50):
     # decim
     # Decimate each channel time series 
     for i in range(nch): # range(nch)
-        phase_data_unwrapped_decim[i, :] = decimate(raw_data[i,:], decim_factor)
+        phase_data_unwrapped_decim[i, :] = decimate(phase_data[i,:], decim_factor)
 
     # Decimate TIME data DON'T use decimate function! The decimate function downsamples the signal
     # after applying an anti-aliasing filter! Just take every decim_factor (50th) entry
