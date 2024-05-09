@@ -349,16 +349,14 @@ def plot_das_time_series_all_axis_3D(directory_to_file, input_file_name, title='
         total_distance[axis] = np.concatenate((distance_bot, distance_mid, distance_top))
         total_strain[axis] = np.vstack([strain[bot_name].T, strain[mid_name].T, strain[top_name].T])
 
-    fig = plt.figure(figsize=(15, 20))
+    fig = plt.figure(figsize=(20, 10),dpi=300)
     
-
-
     time_marker_floats = mdates.date2num(pd.to_datetime(time_marker)) if time_marker else []
 
     # Creating 3D plot for each axis
     for i, axis in enumerate(axes):
         ax = fig.add_subplot(2, 2, i+1, projection='3d')
-        ax.set_title( f'Axis {axis.upper()}', y=0.85)  # Adjust title spacing
+        ax.set_title( f'Axis {axis.upper()}', y=0.9)  # Adjust title spacing
         ax.set_xlabel('Time')
         ax.set_ylabel('Distance (m)')
         ax.set_zlabel('Microstrain')
@@ -384,14 +382,14 @@ def plot_das_time_series_all_axis_3D(directory_to_file, input_file_name, title='
         # Formatting the x-axis to display datetime
         ax.xaxis.set_major_locator(mdates.AutoDateLocator())
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
-        ax.set_box_aspect(aspect=(4, 1, 1))
+        ax.set_box_aspect(aspect=(2, 0.5, 0.5))
         ax.xaxis.pane.fill = False
         ax.yaxis.pane.fill = False
         ax.zaxis.pane.fill = False
 
     plt.tight_layout()
     fig.suptitle(title, fontsize=16,y=0.8)
-    plt.subplots_adjust(left=-0.05, right=1.05, top=1, bottom=0, wspace=0.05, hspace=-0.1)
+    plt.subplots_adjust(left=-.25, right=1.25, top=3.75, bottom=-.4)
     # plt.subplot_tool()
     plt.show()
 
