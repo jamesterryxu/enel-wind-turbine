@@ -1,2 +1,2 @@
 # enel-wind-turbine
-Preliminary analysis using classical methods
+structural health monitoring of wind turbines using classical methods and differentiable physics
