@@ -13,12 +13,12 @@ A. (Recommended) Install with conda:
 
 	2. Create a conda environment that will contain python 3:
 	```
-	conda create -n cs281a python=3.11
+	conda create -n wind-env python=3.11
 	```
 
 	3. activate the environment (do this every time you open a new terminal and want to run code):
 	```
-	source activate cs281a
+	source activate wind-env
 	```
 
 	4. Install the requirements (found in project folder) into this conda environment
