@@ -45,17 +45,22 @@ def plot_min_max_luna(directory_to_file, input_file_name,title,transparency=0.25
     min_strain,max_strain= load_min_max_luna_data(directory_to_file = directory_to_file,
                                         input_file_name = input_file_name)
     
-    # generate x data
+    # Generate x data
     n_bot_loop = np.shape(min_strain['bot-loop'])[0]
     n_top_loop = np.shape(min_strain['top-loop'])[0]
 
-    
-    # bottom loop
-    rad_bot_loop = np.linspace(0, 2*np.pi, n_bot_loop, endpoint=False) # trim ~3 inches of overlap
-    rad_bot_loop = (rad_bot_loop + (start_point*np.pi/180)) % (2*np.pi)
-    # top loop
-    rad_top_loop = np.linspace(0, 2*np.pi, n_top_loop, endpoint=False) # trim ~3 inches of overlap
-    rad_top_loop = (rad_top_loop + (start_point*np.pi/180)) % (2*np.pi)
+    # Convert start_point to radians and set the starting angle to 6 degrees clockwise
+    start_point_rad = np.deg2rad(start_point)  # Convert start_point from degrees to radians
+    clockwise_offset = -1  # To rotate clockwise, we need to negate the angles
+
+    # Bottom loop
+    rad_bot_loop = np.linspace(0, 2 * np.pi, n_bot_loop, endpoint=False)  # Trim ~3 inches of overlap
+    rad_bot_loop = (rad_bot_loop * clockwise_offset + start_point_rad) % (2 * np.pi)
+
+    # Top loop
+    rad_top_loop = np.linspace(0, 2 * np.pi, n_top_loop, endpoint=False)  # Trim ~3 inches of overlap
+    rad_top_loop = (rad_top_loop * clockwise_offset + start_point_rad) % (2 * np.pi)
+
 
     fig,axs = plt.subplots(1,2,subplot_kw={'projection':'polar'},figsize=(16,8),dpi=400)
 
@@ -74,6 +79,18 @@ def plot_min_max_luna(directory_to_file, input_file_name,title,transparency=0.25
             axs[1].scatter(rad_top_loop,max_strain[segment],
                         color='tab:red',s = 10,zorder=1,alpha=transparency)
     
+    line_indicies = [51,751,1589,1926,2560,3139,3685,4422]
+    line_names = ['B','C','D','E','F','G','H','A']
+
+    # adding lines to plots
+    for index, name in zip(line_indicies,line_names):
+        angle = rad_bot_loop[index]
+        axs[0].axvline(x=angle,color='black',linestyle='--')
+        # Add text slightly offset from the line
+        # Adjust radius and alignment as needed
+        axs[0].text(x=angle, y=strain_max*0.8,
+        s= name, horizontalalignment='left', verticalalignment='center')
+
     
     axs[0].set_title('Lower Loop', fontsize=24)
     axs[1].set_title('Upper Loop', fontsize=24)
@@ -97,6 +114,77 @@ def plot_min_max_luna(directory_to_file, input_file_name,title,transparency=0.25
     # plt.savefig('destination_path.eps', format='eps')
     plt.show()
     
+
+
+def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparency=0.25, start_point=0, strain_min=-20, strain_max=20):
+    ''' Function to plot processed min, max data and their difference
+    Args:
+        directory_to_file (str): Directory containing the file
+        input_file_name (str): Name of the input file
+        title (str): Title of the plot
+        transparency (float): Transparency level of the scatter plot points
+        start_point (int): Degree to start the plot from
+        strain_min (int): Minimum strain value for the y-axis
+        strain_max (int): Maximum strain value for the y-axis
+
+    Returns:
+        None
+    '''
+    min_strain, max_strain = load_min_max_luna_data(directory_to_file=directory_to_file, input_file_name=input_file_name)
+    
+    # Generate x data
+    n_bot_loop = np.shape(min_strain['bot-loop'])[0]
+    n_top_loop = np.shape(min_strain['top-loop'])[0]
+
+    # Convert start_point to radians and set the starting angle to 6 degrees clockwise
+    start_point_rad = np.deg2rad(start_point)  # Convert start_point from degrees to radians
+    clockwise_offset = -1  # To rotate clockwise, we need to negate the angles
+
+    # Bottom loop
+    rad_bot_loop = np.linspace(0, 2 * np.pi, n_bot_loop, endpoint=False)
+    rad_bot_loop = (rad_bot_loop * clockwise_offset + start_point_rad) % (2 * np.pi)
+
+    # Top loop
+    rad_top_loop = np.linspace(0, 2 * np.pi, n_top_loop, endpoint=False)
+    rad_top_loop = (rad_top_loop * clockwise_offset + start_point_rad) % (2 * np.pi)
+
+    fig, axs = plt.subplots(1, 2, subplot_kw={'projection': 'polar'}, figsize=(16, 8), dpi=400)
+
+    # Calculate the difference between max and min strains
+    strain_diff_bot = max_strain['bot-loop'] - min_strain['bot-loop']
+    strain_diff_top = max_strain['top-loop'] - min_strain['top-loop']
+
+    segments = [('bot-loop', rad_bot_loop, strain_diff_bot), ('top-loop', rad_top_loop, strain_diff_top)]
+
+    # Loop through tower segments
+    for i, (segment, rad_loop, strain_diff) in enumerate(segments):
+        axs[i].scatter(rad_loop, strain_diff, color='tab:blue', label='Strain Difference', s = 10,zorder=1,alpha=transparency)  # Plot strain difference
+
+    # Additional configuration
+    for i, sub_title in enumerate(['Lower Loop', 'Upper Loop']):
+        axs[i].set_title(sub_title, fontsize=24)
+        axs[i].set_ylabel('micro Strain Envelope', fontsize=16, labelpad=-270, rotation=0)
+        axs[i].tick_params(axis='both', labelsize=16)
+        axs[i].grid(True)
+        axs[i].legend(fontsize=18, loc='upper right')
+
+    line_indicies = [51,751,1589,1926,2560,3139,3685,4422]
+    line_names = ['B','C','D','E','F','G','H','A']
+
+    # adding lines to plots
+    for index, name in zip(line_indicies,line_names):
+        angle = rad_bot_loop[index]
+        axs[0].axvline(x=angle,color='black',linestyle='--')
+        # Add text slightly offset from the line
+        # Adjust radius and alignment as needed
+        axs[0].text(x=angle, y=strain_max*0.8,
+        s= name, horizontalalignment='left', verticalalignment='center')
+
+    axs[0].axis(ymin=strain_min, ymax=strain_max)
+    axs[1].axis(ymin=strain_min, ymax=strain_max)
+    fig.suptitle(title, fontsize=28)
+    plt.tight_layout(rect=[0, 0, 1, 0.99])
+    plt.show()
 
 
 
@@ -232,7 +320,7 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     total_distance = np.concatenate((distance_bot, distance_mid, distance_top))
 
     # Concatenating strain data
-    total_strain = np.vstack([strain[bot_name].T, strain[mid_name].T, strain[top_name].T])  # total_strain (num_sensors x time)
+    total_strain = np.vstack([strain[bot_name].T, strain[mid_name].T, strain[top_name].T]) /10430.378350470453 # TODO: REMOVE AFTER FIXING BUG # total_strain (num_sensors x time)
 
     ## Creating 3D plot
     # fig = plt.figure(figsize=plt.figaspect(0.1)*10)
@@ -347,7 +435,7 @@ def plot_das_time_series_all_axis_3D(directory_to_file, input_file_name, title='
         distance_mid = np.arange(mid_segment_height) + mid_offset
         distance_top = np.arange(top_segment_height) + top_offset
         total_distance[axis] = np.concatenate((distance_bot, distance_mid, distance_top))
-        total_strain[axis] = np.vstack([strain[bot_name].T, strain[mid_name].T, strain[top_name].T])
+        total_strain[axis] = np.vstack([strain[bot_name].T, strain[mid_name].T, strain[top_name].T])/10430.378350470453 # TODO: REMOVE AFTER FIXING BUG!
 
     fig = plt.figure(figsize=(20, 10),dpi=300)
     
