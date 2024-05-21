@@ -167,8 +167,9 @@ def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparen
         axs[i].set_ylabel('micro Strain Envelope', fontsize=16, labelpad=-270, rotation=0)
         axs[i].tick_params(axis='both', labelsize=16)
         axs[i].grid(True)
-        axs[i].legend(fontsize=18, loc='upper right')
-
+        
+    axs[1].legend(fontsize=18, loc='upper left', bbox_to_anchor=(1.05, 0.95)) # Only show the legend for the second plot
+    
     line_indicies = [51,751,1589,1926,2560,3139,3685,4422]
     line_names = ['B','C','D','E','F','G','H','A']
 
