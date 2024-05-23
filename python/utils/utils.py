@@ -608,15 +608,15 @@ def datum_retriever_luna_data(directory_to_file,input_file_name,number_of_second
         raise ValueError('Requested number of seconds is too large')
 
     # Take the average over the last number_of_seconds
-    top_loop_datum = np.mean(top_loop[-number_of_samples:],
+    top_loop_datum = np.nanmean(top_loop[-number_of_samples:],
                              axis=0)
-    bot_loop_datum = np.mean(bot_loop[-number_of_samples:],
+    bot_loop_datum = np.nanmean(bot_loop[-number_of_samples:],
                              axis=0)
     
     # Get the min and max to confirm function works
     # Get the range (min and max) to confirm function works
-    top_loop_range = np.max(top_loop[-number_of_samples:], axis=0) - np.min(top_loop[-number_of_samples:], axis=0)
-    bot_loop_range = np.max(bot_loop[-number_of_samples:], axis=0) - np.min(bot_loop[-number_of_samples:], axis=0)
+    top_loop_range = np.nanmax(top_loop[-number_of_samples:], axis=0) - np.nanmin(top_loop[-number_of_samples:], axis=0)
+    bot_loop_range = np.nanmax(bot_loop[-number_of_samples:], axis=0) - np.nanmin(bot_loop[-number_of_samples:], axis=0)
 
     # Check if the difference between min and max is greater than 15 microstrain for any sensor
     if np.any(top_loop_range > 15) or np.any(bot_loop_range > 15):
