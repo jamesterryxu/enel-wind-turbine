@@ -117,7 +117,7 @@ def plot_min_max_luna(directory_to_file, input_file_name,title,transparency=0.25
     
 
 
-def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparency=0.25, start_point=0, strain_min=-20, strain_max=20):
+def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparency=0.25, start_point=0, strain_min=-20, strain_max=20,wind_dir = None, wind_speed = None):
     ''' Function to plot processed min, max data and their difference
     Args:
         directory_to_file (str): Directory containing the file
@@ -127,9 +127,9 @@ def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparen
         start_point (int): Degree to start the plot from
         strain_min (int): Minimum strain value for the y-axis
         strain_max (int): Maximum strain value for the y-axis
+        wind_dir (float): Wind direction in degrees from North
+        wind_speed (float): Wind speed
 
-    Returns:
-        None
     '''
     min_strain, max_strain = load_min_max_luna_data(directory_to_file=directory_to_file, input_file_name=input_file_name)
     
@@ -149,6 +149,7 @@ def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparen
     rad_top_loop = np.linspace(0, 2 * np.pi, n_top_loop, endpoint=False)
     rad_top_loop = (rad_top_loop * clockwise_offset + start_point_rad) % (2 * np.pi)
 
+
     fig, axs = plt.subplots(1, 2, subplot_kw={'projection': 'polar'}, figsize=(16, 8), dpi=400)
 
     # Calculate the difference between max and min strains
@@ -163,13 +164,29 @@ def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparen
 
     # Additional configuration
     for i, sub_title in enumerate(['Lower Loop', 'Upper Loop']):
-        axs[i].set_title(sub_title, fontsize=24)
+        axs[i].set_title(label=sub_title, y=1.05,fontsize=24)
         axs[i].set_ylabel('micro Strain Envelope', fontsize=16, labelpad=-270, rotation=0)
         axs[i].tick_params(axis='both', labelsize=16)
         axs[i].grid(True)
         
     axs[1].legend(fontsize=18, loc='upper left', bbox_to_anchor=(1.05, 0.95)) # Only show the legend for the second plot
     
+
+
+    if wind_dir is not None and wind_speed is not None:
+        # Calculate the wind direction in radians and adjust for plot rotation
+        wind_dir_rad = np.deg2rad(wind_dir) + np.deg2rad(start_point)
+        wind_dir_rad = wind_dir_rad % (2 * np.pi)   # Normalize to ensure it is within 0 to 2π
+
+        # Add wind direction arrow to each subplot
+        for ax in axs:
+            ax.annotate('', xy=(wind_dir_rad, strain_max * 0.9), xytext=(0, 0),
+                        arrowprops=dict(facecolor='red', shrink=0, width=2, headwidth=8, alpha=0.5))
+            ax.text(wind_dir_rad, strain_max*.95, f'{wind_speed} m/s', horizontalalignment='center', verticalalignment='bottom', fontsize=12, color='red')
+        else:
+            pass
+
+
     line_indicies = [51,751,1589,1926,2560,3139,3685,4422]
     line_names = ['B','C','D','E','F','G','H','A']
 
@@ -179,17 +196,45 @@ def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparen
         axs[0].axvline(x=angle,color='black',linestyle='--')
         # Add text slightly offset from the line
         # Adjust radius and alignment as needed
-        axs[0].text(x=angle, y=strain_max*0.8,
-        s= name, horizontalalignment='left', verticalalignment='center')
+        axs[0].text(x=angle, 
+                    y=strain_max*0.8, 
+                    s = name, 
+                    horizontalalignment='left', 
+                    verticalalignment='center')
+    
+    # Add cardinal direction labels
+    labels = ['E', 'N', 'W', 'S']
+    angles = np.deg2rad([0, 90, 180, 270])
+    
+    for label, angle in zip(labels, angles):
+        axs[0].text(x=angle,
+                    y= 1.08 * strain_max,
+                    s= label, 
+                    horizontalalignment='center', 
+                    verticalalignment='center', 
+                    fontsize=16)
+        axs[1].text(x=angle,
+                    y= 1.08 * strain_max,
+                    s= label, 
+                    horizontalalignment='center', 
+                    verticalalignment='center', 
+                    fontsize=16)
+
+    # Custom ticks, excluding cardinal directions
+    ticks = np.linspace(0, 2 * np.pi, 8, endpoint=False)  # Define all possible tick positions
+    tick_positions = [tick for tick in ticks if not np.isclose(tick, angles).any()]  # Exclude cardinal angles
+
+    # Apply custom tick positions
+    axs[0].set_xticks(tick_positions)
+    axs[1].set_xticks(tick_positions)
+
+
 
     axs[0].axis(ymin=strain_min, ymax=strain_max)
     axs[1].axis(ymin=strain_min, ymax=strain_max)
     fig.suptitle(title, fontsize=28)
     plt.tight_layout(rect=[0, 0, 1, 0.99])
     plt.show()
-
-
-
 
 
 
