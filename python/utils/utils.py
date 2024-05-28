@@ -664,6 +664,52 @@ def zero_out_function_luna_data(directory_to_file,input_file_name,number_of_seco
 
     
 
+def process_and_extract_scada_data(file_path,  start_datetime, end_datetime, n,sheet_name='Sheet1'):
+    """
+    Reads an Excel file with wind direction and speed data, processes it by interpolating missing data,
+    and extracts n data points evenly between specified start and end datetimes.
+
+    Parameters:
+    file_path (str): Path to the Excel file.
+    sheet_name (str): Name of the sheet in the Excel file.
+    start_datetime (str): Start datetime for the extraction in 'YYYY-MM-DD HH:MM:SS' format.
+    end_datetime (str): End datetime for the extraction in 'YYYY-MM-DD HH:MM:SS' format.
+    n (int): Number of data points to extract.
+
+    Returns:
+    pandas.DataFrame: Extracted data points.
+    """
+    # Read Excel file
+    df = pd.read_excel(file_path, sheet_name=sheet_name)
+
+    # Prepare DataFrames for wind direction and speed
+    df['timestamp_dir_est'] = pd.to_datetime(df['timestamp_dir_est'], format='%I:%M:%S %p')
+    df['timestamp_vel_est'] = pd.to_datetime(df['timestamp_vel_est'], format='%I:%M:%S %p')
+    
+    df_direction = df[['timestamp_dir_est', 'dir_degrees']].rename(columns={'timestamp_dir_est': 'timestamp'})
+    df_speed = df[['timestamp_vel_est', 'vel_meters_per_second']].rename(columns={'timestamp_vel_est': 'timestamp'})
+    
+    # Merge DataFrames on timestamps ensuring that they do not contain non-numeric data
+    df_merged = pd.merge(df_direction, df_speed, on='timestamp', how='outer')
+    df_merged.set_index('timestamp', inplace=True)
+    
+    # Convert all columns to numeric, ignoring non-numeric columns during resampling
+    df_merged['dir_degrees'] = pd.to_numeric(df_merged['dir_degrees'], errors='coerce')
+    df_merged['vel_meters_per_second'] = pd.to_numeric(df_merged['vel_meters_per_second'], errors='coerce')
+
+    # Calculate the resample interval based on 'n' and the specified time range
+    total_seconds = (pd.to_datetime(end_datetime) - pd.to_datetime(start_datetime)).total_seconds()
+    interval_seconds = total_seconds / (n - 1)  # Calculate interval in seconds to get 'n' points
+    interval = f'{int(interval_seconds)}s'  # Format as a string for pandas resample method
+
+    # Resample and interpolate
+    df_resampled = df_merged.resample(interval).mean() # how='mean' tells resample how to aggregate values if multiple rows fall within the same period (in this case 'interval' indicates that the period frequency is 1 minute long.) 
+    df_interpolated = df_resampled.interpolate(method='linear')
+    
+    # Extract data
+    mask = (df_interpolated.index >= pd.to_datetime(start_datetime)) & (df_interpolated.index <= pd.to_datetime(end_datetime))
+    df_filtered = df_interpolated.loc[mask]
+    return df_filtered
 
 # analysis functions
 def load_preprocessed_luna_data(directory_to_file,input_file_name):
