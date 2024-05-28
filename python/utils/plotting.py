@@ -196,8 +196,9 @@ def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparen
         axs[0].axvline(x=angle,color='black',linestyle='--')
         # Add text slightly offset from the line
         # Adjust radius and alignment as needed
-        axs[0].text(x=angle, 
-                    y=strain_max*0.8, 
+        axs[0].text(x=angle+np.deg2rad(4), 
+                    y=strain_max*0.9, 
+                    fontsize=14,
                     s = name, 
                     horizontalalignment='left', 
                     verticalalignment='center')
