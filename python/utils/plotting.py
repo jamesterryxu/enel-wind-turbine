@@ -165,7 +165,7 @@ def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparen
     # Additional configuration
     for i, sub_title in enumerate(['Lower Loop', 'Upper Loop']):
         axs[i].set_title(label=sub_title, y=1.05,fontsize=24)
-        axs[i].set_ylabel('micro Strain Envelope', fontsize=16, labelpad=-270, rotation=0)
+        axs[i].set_ylabel('micro Strain', fontsize=16, labelpad=-330, rotation=0)
         axs[i].tick_params(axis='both', labelsize=16)
         axs[i].grid(True)
         
