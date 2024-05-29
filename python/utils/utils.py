@@ -338,7 +338,7 @@ def load_decim_data_helper(directory_to_file,input_file_name):
     return data,time
 
 ## analysis functions
-def load_preprocessed_das_data(directory_to_file,input_file_name):
+def load_preprocessed_das_data(directory_to_file,input_file_name,target_time = None):
     ''' Function to load decimated 100 Hz cut and process the datetimes
     Args:
         directory_to_file: full directory to file (string)
@@ -371,6 +371,54 @@ def load_preprocessed_das_data(directory_to_file,input_file_name):
     # convert h5 group to double
     return strain,time_datetime,time[()] # return a numpy array
 
+def load_preprocessed_das_data_target(directory_to_file, input_file_name, target_time=None):
+    ''' 
+    Function to load decimated 100 Hz cut and process the datetimes.
+    Optionally filters data around provided target times.
+
+    Args:
+        directory_to_file (str): Full directory to file.
+        input_file_name (str): .h5 file that you want to decimate.
+        target_time (list of str, optional): List of target times as strings in 'YYYY-MM-DD HH:MM:SS' format.
+
+    Returns:
+        strain (dict): Dictionary of different segments containing numpy arrays of strain data.
+        time_datetime (list): List of datetimes corresponding to the times in the data.
+        time (numpy array): Array of unix times in microseconds.
+
+    Raises:
+        FileNotFoundError: If the specified file is not found.
+    '''
+    # Open the .h5 file
+    strain, time_datetime, time = load_preprocessed_das_data(directory_to_file=directory_to_file,
+                                                         input_file_name=input_file_name)
+    segments = ['bot_a', 'mid_a', 'top_a',
+                'bot_b', 'mid_b', 'top_b',
+                'bot_c', 'mid_c', 'top_c',
+                'bot_d', 'mid_d', 'top_d']
+    
+    # Filter data by target_time if specified
+    # Get time indices for target times
+    if target_time is None:
+        pass
+    else:
+        # Initialize list to store indices
+        target_time_indices = []
+        for t in target_time:
+            # Convert the string time to a datetime object, then to Unix time
+            target_t = (pd.Timestamp(t) - pd.Timestamp('1970-01-01')) // pd.Timedelta('1us')
+            # Find the index of the closest time in the 'time' array
+            index = np.abs(time - target_t).argmin()
+            target_time_indices.append(index)
+
+    strain_filtered = {}
+
+    time_filtered = time[target_time_indices[0]:target_time_indices[1]]
+    time_datetime_filtered = time_datetime[target_time_indices[0]:target_time_indices[1]]
+    for segment in segments:
+        strain_filtered[segment] = strain[segment][target_time_indices[0]:target_time_indices[1]]
+
+    return strain_filtered, time_datetime_filtered, time_filtered
 
 def filter_das_data(directory_to_file,input_file_name,cutoff_freq=0.1,order=2):
     ''' Function to filter data using a high pass filter
