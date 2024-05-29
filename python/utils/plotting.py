@@ -117,7 +117,7 @@ def plot_min_max_luna(directory_to_file, input_file_name,title,transparency=0.25
     
 
 
-def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparency=0.25, start_point=0, strain_min=-20, strain_max=20,wind_dir = None, wind_speed = None):
+def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparency=0.25, start_point=0, strain_min=-20, strain_max=20,wind_dir = None, wind_speed = None,save=False):
     ''' Function to plot processed min, max data and their difference
     Args:
         directory_to_file (str): Directory containing the file
@@ -236,7 +236,9 @@ def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparen
     fig.suptitle(title, fontsize=28)
     plt.tight_layout(rect=[0, 0, 1, 0.99])
     plt.show()
-
+    # Save the plot if needed as eps file
+    if save:
+        plt.savefig('das_plot.eps', format='eps',bbox_inches='tight')
 
 
 
@@ -392,10 +394,10 @@ def plot_das_time_series(directory_to_file, input_file_name,channels,title,trans
              
     
     # set up titles and formatting
-    axs[0,0].set_title('Axis a', fontsize=24)
-    axs[0,1].set_title('Axis b', fontsize=24)
-    axs[1,0].set_title('Axis c', fontsize=24)
-    axs[1,1].set_title('Axis d', fontsize=24)
+    axs[0,0].set_title('Axis 1', fontsize=24)
+    axs[0,1].set_title('Axis 2', fontsize=24)
+    axs[1,0].set_title('Axis 3', fontsize=24)
+    axs[1,1].set_title('Axis 4', fontsize=24)
     axs[0,0].set_ylabel('micro Strain Envelope',fontsize=16)
     axs[1,0].set_ylabel('micro Strain Envelope',fontsize=16)
     axs[1,0].set_xlabel('Time',fontsize=16)
@@ -416,7 +418,7 @@ def plot_das_time_series(directory_to_file, input_file_name,channels,title,trans
 
 
 
-def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a', title='DAS Time Series', target_time=None, transparency=0.25, elev=30, azim=30, time_marker=None):
+def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a', title='DAS Time Series', target_time=None, transparency=0.25, elev=30, azim=30, time_marker=None,time_marker_text='None',save=False):
     '''
     Function to plot 3D time series data of DAS data for all indices within a specified axis.
 
@@ -475,12 +477,16 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     # fig = plt.figure(figsize=plt.figaspect(0.1)*10)
     fig = plt.figure(figsize=(20, 10),dpi=300)
     ax = fig.add_subplot(111, projection='3d')
-    ax.set_title(title, y=.75)
-    ax.set_xlabel('Time', labelpad=20)
-    ax.set_ylabel('Distance (m)')
-    ax.set_zlabel('Microstrain', labelpad=5)
+    ax.set_title(title, fontsize=30,y=.75)
+    ax.set_xlabel('Time', fontsize=20,labelpad=25)
+    ax.set_ylabel('Distance (m)',fontsize=20)
+    ax.set_zlabel('Microstrain',fontsize=20, labelpad=5)
+    # Setting the font size for tick labels
+    ax.tick_params(axis='x', labelsize=16)  # Adjust x-axis tick label font size
+    ax.tick_params(axis='y', labelsize=16)  # Adjust y-axis tick label font size
+    ax.tick_params(axis='z', labelsize=16)  # Adjust z-axis tick label font size    
 
-
+    
     # plotting each sensor's time series
     for i in range(total_strain.shape[0]):
         y = np.full_like(time_floats, total_distance[i])  # Broadcast distance to match the size of time_floats
@@ -495,7 +501,7 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
             Y, Z = np.meshgrid(np.linspace(min(total_distance), max(total_distance), 2), np.linspace(total_strain[:, target_time_indices[0]:target_time_indices[1]].min(), total_strain[:, target_time_indices[0]:target_time_indices[1]].max(), 2))
             ax.plot_surface(X, Y, Z, color='tab:red', alpha=0.75)
             # Add text label on the plane
-            ax.text(tm, max(total_distance) * 1.15, total_strain[:, target_time_indices[0]:target_time_indices[1]].max() * 1.05, 'Brake event', color = 'black')
+            ax.text(tm, max(total_distance) * 1.15, total_strain[:, target_time_indices[0]:target_time_indices[1]].max() * 1.05, time_marker_text, fontsize=18,color = 'black')
 
     # Setting the plotting limits
     ax.set_xlim(time_floats.min(), time_floats.max())
@@ -509,6 +515,8 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
     ax.set_box_aspect(aspect=(4, 1.5, 1))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+
     # ax.set_box_aspect([4,1,1])
     # Get rid of colored axes planes
     # First remove fill
@@ -530,6 +538,9 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     # plt.savefig('test.png', bbox_inches='tight',pad_inches = 0, dpi = 300)
     plt.subplots_adjust(left=-.25, right=1.25, top=1.5, bottom=-.4)
     plt.show()
+    # Save the plot if needed as eps file
+    if save:
+        plt.savefig('das_plot.eps', format='eps',bbox_inches='tight')
     
 
 
