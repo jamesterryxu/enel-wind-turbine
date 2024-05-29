@@ -117,7 +117,7 @@ def plot_min_max_luna(directory_to_file, input_file_name,title,transparency=0.25
     
 
 
-def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparency=0.25, start_point=0, strain_min=-20, strain_max=20,wind_dir = None, wind_speed = None,save=False):
+def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparency=0.25, start_point=0, strain_min=-20, strain_max=20,wind_dir = None, wind_speed = None,save=False,save_name='plot.eps'):
     ''' Function to plot processed min, max data and their difference
     Args:
         directory_to_file (str): Directory containing the file
@@ -235,10 +235,12 @@ def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparen
     axs[1].axis(ymin=strain_min, ymax=strain_max)
     fig.suptitle(title, fontsize=28)
     plt.tight_layout(rect=[0, 0, 1, 0.99])
-    plt.show()
-    # Save the plot if needed as eps file
+    # Save the plot if needed as eps file, needs to come before plt.show() since it creates a new blank plot
     if save:
-        plt.savefig('das_plot.eps', format='eps',bbox_inches='tight')
+        plt.savefig(save_name, format='eps',bbox_inches='tight')
+
+    plt.show()
+
 
 
 
@@ -418,7 +420,7 @@ def plot_das_time_series(directory_to_file, input_file_name,channels,title,trans
 
 
 
-def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a', title='DAS Time Series', target_time=None, transparency=0.25, elev=30, azim=30, time_marker=None,time_marker_text='None',save=False):
+def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a', title='DAS Time Series', target_time=None, transparency=0.25, elev=30, azim=30, time_marker=None,time_marker_text='None',save=False,save_name='plot.eps'):
     '''
     Function to plot 3D time series data of DAS data for all indices within a specified axis.
 
@@ -537,10 +539,13 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     plt.tight_layout() # Adjust as needed
     # plt.savefig('test.png', bbox_inches='tight',pad_inches = 0, dpi = 300)
     plt.subplots_adjust(left=-.25, right=1.25, top=1.5, bottom=-.4)
-    plt.show()
-    # Save the plot if needed as eps file
+    # Save the plot if needed as eps file, needs to come before plt.show() since it creates a new blank plot
     if save:
-        plt.savefig('das_plot.eps', format='eps',bbox_inches='tight')
+        plt.savefig(save_name, format='eps',bbox_inches='tight')
+
+    plt.show()
+
+
     
 
 
