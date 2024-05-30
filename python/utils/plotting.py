@@ -233,11 +233,12 @@ def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparen
 
     axs[0].axis(ymin=strain_min, ymax=strain_max)
     axs[1].axis(ymin=strain_min, ymax=strain_max)
-    fig.suptitle(title, fontsize=28)
     plt.tight_layout(rect=[0, 0, 1, 0.99])
     # Save the plot if needed as eps file, needs to come before plt.show() since it creates a new blank plot
     if save:
-        plt.savefig(save_name, format='eps',bbox_inches='tight')
+        plt.savefig(save_name, format='pdf',bbox_inches='tight')
+    
+    fig.suptitle(title, fontsize=28)
 
     plt.show()
 
@@ -541,7 +542,7 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     plt.subplots_adjust(left=-.25, right=1.25, top=1.5, bottom=-.4)
     # Save the plot if needed as eps file, needs to come before plt.show() since it creates a new blank plot
     if save:
-        plt.savefig(save_name, format='eps',bbox_inches='tight')
+        plt.savefig(save_name, format='pdf',bbox_inches='tight')
 
     plt.show()
 
