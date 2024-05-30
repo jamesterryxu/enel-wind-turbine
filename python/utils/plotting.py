@@ -233,7 +233,7 @@ def plot_min_max_diff_luna(directory_to_file, input_file_name, title, transparen
 
     axs[0].axis(ymin=strain_min, ymax=strain_max)
     axs[1].axis(ymin=strain_min, ymax=strain_max)
-    plt.tight_layout(rect=[0, 0, 1, 0.99])
+    plt.subplots_adjust(left=0, right=1, bottom=0.3, top=0.9)
     # Save the plot if needed as eps file, needs to come before plt.show() since it creates a new blank plot
     if save:
         plt.savefig(save_name, format='pdf',bbox_inches='tight')
@@ -451,10 +451,12 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
             # Find the index of the closest time in the 'time' array
             index = np.abs(time - target_t).argmin()
             target_time_indices.append(index)
-    
+
+
     # Convert datetime to Matplotlib float date format for plotting
     time_floats = mdates.date2num(time_datetime[target_time_indices[0]:target_time_indices[1]])
-    
+    time_floats += 2 / 24.0  # Adding 2 hours as a fraction of a day, hacky fix...
+
     bot_name = 'bot_' + axis
     mid_name = 'mid_' + axis
     top_name = 'top_' + axis
@@ -480,8 +482,7 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     # fig = plt.figure(figsize=plt.figaspect(0.1)*10)
     fig = plt.figure(figsize=(20, 10),dpi=300)
     ax = fig.add_subplot(111, projection='3d')
-    ax.set_title(title, fontsize=30,y=.75)
-    ax.set_xlabel('Time', fontsize=20,labelpad=25)
+    ax.set_xlabel('Time', fontsize=20,labelpad=55)
     ax.set_ylabel('Distance (m)',fontsize=20)
     ax.set_zlabel('Microstrain',fontsize=20, labelpad=5)
     # Setting the font size for tick labels
@@ -489,7 +490,6 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     ax.tick_params(axis='y', labelsize=16)  # Adjust y-axis tick label font size
     ax.tick_params(axis='z', labelsize=16)  # Adjust z-axis tick label font size    
 
-    
     # plotting each sensor's time series
     for i in range(total_strain.shape[0]):
         y = np.full_like(time_floats, total_distance[i])  # Broadcast distance to match the size of time_floats
@@ -539,10 +539,11 @@ def plot_das_time_series_one_axis_3D(directory_to_file, input_file_name, axis='a
     # plt.subplots_adjust(left=-0.05, right=1.05, top=1, bottom=0, wspace=0.05, hspace=-0.1)
     plt.tight_layout() # Adjust as needed
     # plt.savefig('test.png', bbox_inches='tight',pad_inches = 0, dpi = 300)
-    plt.subplots_adjust(left=-.25, right=1.25, top=1.5, bottom=-.4)
+    plt.subplots_adjust(left=-.23, right=1.25, top=1.5, bottom=-.5)
     # Save the plot if needed as eps file, needs to come before plt.show() since it creates a new blank plot
     if save:
-        plt.savefig(save_name, format='pdf',bbox_inches='tight')
+        plt.savefig(save_name, format='pdf')
+    ax.set_title(title, fontsize=30,y=.75)
 
     plt.show()
 
